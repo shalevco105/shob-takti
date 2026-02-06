@@ -152,7 +152,7 @@ export default function TeamManagementPage() {
                                             <option value="regular">רגיל</option>
                                             <option value="mliluim">מילואים</option>
                                         </select>
-                                        <button onClick={() => saveMember(editingMember)} className="btn-icon" style={{ background: '#10b981', color: 'white' }}>
+                                        <button onClick={() => editingMember && saveMember(editingMember)} className="btn-icon" style={{ background: '#10b981', color: 'white' }}>
                                             <Save size={18} />
                                         </button>
                                         <button onClick={() => setEditingMember(null)} className="btn-icon">✕</button>
@@ -202,9 +202,10 @@ export default function TeamManagementPage() {
                                             <option value="regular">רגיל</option>
                                             <option value="mliluim">מילואים</option>
                                         </select>
-                                        <button onClick={() => saveMember(editingMember)} className="btn-icon" style={{ background: '#10b981', color: 'white' }}>
+                                        <button onClick={() => editingMember && saveMember(editingMember)} className="btn-icon" style={{ background: '#10b981', color: 'white' }}>
                                             <Save size={18} />
                                         </button>
+
                                         <button onClick={() => setEditingMember(null)} className="btn-icon">✕</button>
                                     </>
                                 ) : (
