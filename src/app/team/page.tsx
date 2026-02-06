@@ -82,7 +82,7 @@ export default function TeamManagementPage() {
                 {/* Add New Member Form */}
                 <div style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '0.75rem', marginBottom: '2rem' }}>
                     <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', color: '#475569' }}>הוסף חבר/ה חדש/ה</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
+                    <div className="grid-stack-mobile" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '1rem', alignItems: 'end' }}>
                         <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>שם</label>
                             <input
@@ -131,7 +131,7 @@ export default function TeamManagementPage() {
                     </div>
                     <div style={{ display: 'grid', gap: '0.75rem' }}>
                         {regularMembers.map(member => (
-                            <div key={member._id} style={{
+                            <div key={member._id} className="grid-stack-mobile" style={{
                                 display: 'grid', gridTemplateColumns: '3fr 1fr auto auto', gap: '1rem',
                                 padding: '1rem', background: 'white', borderRadius: '0.5rem',
                                 border: '1px solid #e2e8f0', alignItems: 'center'

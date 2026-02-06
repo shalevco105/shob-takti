@@ -30,12 +30,23 @@ export default function OnCallTableReadOnly() {
     const [currentStart, setCurrentStart] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 0 }));
     const [scheduleData, setScheduleData] = useState<Map<string, ShiftData['shifts']>>(new Map());
     const [holidays, setHolidays] = useState<Set<string>>(new Set());
+    const [isMobile, setIsMobile] = useState(false);
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentStart, i));
 
     useEffect(() => {
         fetchSchedule();
     }, [currentStart]);
+
+    // Mobile detection
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const fetchSchedule = async () => {
         try {
@@ -87,6 +98,112 @@ export default function OnCallTableReadOnly() {
         borderBottom: '1px solid #e2e8f0'
     };
 
+    const shiftTypes = [
+        { id: 'morning', label: 'צל יום', bg: '#fff7ed' },
+        { id: 'main', label: 'ראשי יום', bg: '#fefce8' },
+        { id: 'night', label: 'לילה', bg: '#eff6ff' },
+    ];
+
+    // Render mobile card layout
+    const renderMobileCards = () => {
+        return weekDays.map((date, dayIndex) => {
+            const dateKey = date.toISOString().split('T')[0];
+            const dayName = daysHeader[dayIndex];
+
+            return (
+                <div key={dayIndex} style={{
+                    background: 'white',
+                    borderRadius: '0.75rem',
+                    border: '1px solid #e2e8f0',
+                    padding: '1rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}>
+                    {/* Day header */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '1rem',
+                        paddingBottom: '0.75rem',
+                        borderBottom: '2px solid #f1f5f9'
+                    }}>
+                        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>{dayName}</h3>
+                        <span style={{ fontSize: '1rem', fontWeight: 700, color: '#881337' }}>{format(date, 'd.M')}</span>
+                    </div>
+
+                    {/* Shifts */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {shiftTypes.map((rowType) => {
+                            const shiftData = scheduleData.get(dateKey)?.[rowType.id as keyof ShiftData['shifts']] || { names: [], mode: 'phone' };
+                            const { names, mode } = shiftData;
+                            const activeMode = MODES.find(m => m.id === mode) || MODES[0];
+                            const isHoliday = holidays.has(`${dateKey}-${rowType.id}`);
+
+                            return (
+                                <div key={rowType.id} style={{
+                                    background: rowType.bg,
+                                    padding: '0.75rem',
+                                    borderRadius: '0.5rem',
+                                    border: '1px solid rgba(0,0,0,0.05)'
+                                }}>
+                                    {/* Shift label */}
+                                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#475569', marginBottom: '0.5rem' }}>
+                                        {rowType.label}
+                                    </div>
+
+                                    {/* Names */}
+                                    <div style={{
+                                        fontWeight: 600,
+                                        color: names.length > 0 ? '#334155' : '#94a3b8',
+                                        fontSize: '0.9rem',
+                                        marginBottom: '0.5rem'
+                                    }}>
+                                        {names.length > 0 ? names.join(', ') : '-'}
+                                    </div>
+
+                                    {/* Mode and Holiday badges */}
+                                    {names.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <div style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem',
+                                                padding: '0.375rem 0.625rem',
+                                                background: activeMode.bg,
+                                                color: activeMode.color,
+                                                borderRadius: '0.375rem',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600
+                                            }}>
+                                                {activeMode.icon}
+                                                <span>{activeMode.label}</span>
+                                            </div>
+                                            {isHoliday && (
+                                                <div style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.25rem',
+                                                    padding: '0.375rem 0.625rem',
+                                                    background: '#fef3c7',
+                                                    color: '#92400e',
+                                                    borderRadius: '0.375rem',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600
+                                                }}>
+                                                    <span>חג</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        });
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -102,74 +219,81 @@ export default function OnCallTableReadOnly() {
                 </div>
             </div>
 
-            <div style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
-                <div style={{
-                    marginBottom: '2rem',
-                    borderRadius: '1rem',
-                    overflow: 'hidden',
-                    border: '1px solid #e2e8f0'
-                }}>
-                    <div className="table-header-row" style={gridStyle}>
-                        <div className="table-header-cell" style={{ background: '#f8fafc' }}></div>
-                        {daysHeader.map((day, i) => <div key={i} className="table-header-cell">{day}</div>)}
-                    </div>
-
-                    <div className="table-row" style={gridStyle}>
-                        <div className="table-date-cell" style={{ background: '#fff1f2', borderLeft: '1px solid #e2e8f0' }}></div>
-                        {weekDays.map((date, i) => <div key={i} className="table-date-cell">{format(date, 'd.M')}</div>)}
-                    </div>
-
-                    {[
-                        { id: 'morning', label: 'צל יום', bg: '#fff7ed' },
-                        { id: 'main', label: 'ראשי יום', bg: '#fefce8' },
-                        { id: 'night', label: 'לילה', bg: '#eff6ff' },
-                    ].map((rowType) => (
-                        <div key={rowType.id} className="table-row" style={{ ...gridStyle, backgroundColor: rowType.bg }}>
-                            <div className="table-cell" style={{
-                                display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700,
-                                color: '#475569', padding: '0.5rem 1rem', borderLeft: '1px solid rgba(0,0,0,0.05)'
-                            }}>
-                                <span style={{ fontSize: '1rem' }}>{rowType.label}</span>
-                            </div>
-
-                            {weekDays.map((date, i) => {
-                                const dateKey = date.toISOString().split('T')[0];
-                                const shiftData = scheduleData.get(dateKey)?.[rowType.id as keyof ShiftData['shifts']] || { names: [], mode: 'phone' };
-                                const { names, mode } = shiftData;
-                                const activeMode = MODES.find(m => m.id === mode) || MODES[0];
-                                const isHoliday = holidays.has(`${dateKey}-${rowType.id}`);
-
-                                return (
-                                    <div key={i} className="table-cell" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center' }}>
-                                        <div style={{
-                                            fontWeight: 600,
-                                            color: names.length > 0 ? '#334155' : '#94a3b8',
-                                            fontSize: '0.9rem',
-                                            textAlign: 'center'
-                                        }}>
-                                            {names.length > 0 ? names.join(', ') : '-'}
-                                        </div>
-
-                                        {names.length > 0 && (
-                                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: activeMode.bg, color: activeMode.color, borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 500 }}>
-                                                    {activeMode.icon}
-                                                    <span>{activeMode.label}</span>
-                                                </div>
-                                                {isHoliday && (
-                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: '#fef3c7', color: '#92400e', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                        <span>חג</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ))}
+            {/* Conditional rendering: Mobile cards or Desktop table */}
+            {isMobile ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {renderMobileCards()}
                 </div>
-            </div>
+            ) : (
+                <div style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
+                    <div style={{
+                        marginBottom: '2rem',
+                        borderRadius: '1rem',
+                        overflow: 'hidden',
+                        border: '1px solid #e2e8f0'
+                    }}>
+                        <div className="table-header-row" style={gridStyle}>
+                            <div className="table-header-cell" style={{ background: '#f8fafc' }}></div>
+                            {daysHeader.map((day, i) => <div key={i} className="table-header-cell">{day}</div>)}
+                        </div>
+
+                        <div className="table-row" style={gridStyle}>
+                            <div className="table-date-cell" style={{ background: '#fff1f2', borderLeft: '1px solid #e2e8f0' }}></div>
+                            {weekDays.map((date, i) => <div key={i} className="table-date-cell">{format(date, 'd.M')}</div>)}
+                        </div>
+
+                        {[
+                            { id: 'morning', label: 'צל יום', bg: '#fff7ed' },
+                            { id: 'main', label: 'ראשי יום', bg: '#fefce8' },
+                            { id: 'night', label: 'לילה', bg: '#eff6ff' },
+                        ].map((rowType) => (
+                            <div key={rowType.id} className="table-row" style={{ ...gridStyle, backgroundColor: rowType.bg }}>
+                                <div className="table-cell" style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700,
+                                    color: '#475569', padding: '0.5rem 1rem', borderLeft: '1px solid rgba(0,0,0,0.05)'
+                                }}>
+                                    <span style={{ fontSize: '1rem' }}>{rowType.label}</span>
+                                </div>
+
+                                {weekDays.map((date, i) => {
+                                    const dateKey = date.toISOString().split('T')[0];
+                                    const shiftData = scheduleData.get(dateKey)?.[rowType.id as keyof ShiftData['shifts']] || { names: [], mode: 'phone' };
+                                    const { names, mode } = shiftData;
+                                    const activeMode = MODES.find(m => m.id === mode) || MODES[0];
+                                    const isHoliday = holidays.has(`${dateKey}-${rowType.id}`);
+
+                                    return (
+                                        <div key={i} className="table-cell" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div style={{
+                                                fontWeight: 600,
+                                                color: names.length > 0 ? '#334155' : '#94a3b8',
+                                                fontSize: '0.9rem',
+                                                textAlign: 'center'
+                                            }}>
+                                                {names.length > 0 ? names.join(', ') : '-'}
+                                            </div>
+
+                                            {names.length > 0 && (
+                                                <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: activeMode.bg, color: activeMode.color, borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 500 }}>
+                                                        {activeMode.icon}
+                                                        <span>{activeMode.label}</span>
+                                                    </div>
+                                                    {isHoliday && (
+                                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: '#fef3c7', color: '#92400e', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 600 }}>
+                                                            <span>חג</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

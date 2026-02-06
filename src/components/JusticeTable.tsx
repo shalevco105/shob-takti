@@ -287,7 +287,7 @@ export default function JusticeTable() {
                                         </div>
                                     ) : (
                                         <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                                            בחר משתמש לצפייה בפרטים
+                                            בחר כונן לצפייה בפרטים
                                         </div>
                                     )}
                                 </div>

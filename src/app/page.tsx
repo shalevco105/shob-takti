@@ -20,7 +20,7 @@ export default function Home() {
             </div>
 
             {/* Main Content Area */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1.5rem', alignItems: 'start' }}>
+            <div className="main-content-grid">
                 {/* Main Table Section */}
                 <div className="card glass" style={{ overflow: 'hidden' }}>
                     <div style={{ padding: '1.5rem' }}>
