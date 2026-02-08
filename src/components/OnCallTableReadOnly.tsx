@@ -58,7 +58,8 @@ export default function OnCallTableReadOnly() {
             const holidaySet = new Set<string>();
 
             data.forEach(item => {
-                const dateKey = new Date(item.date).toISOString().split('T')[0];
+                const d = new Date(item.date);
+                const dateKey = format(d, 'yyyy-MM-dd');
                 const normalizedShifts = {
                     second: normalizeShift(item.shifts?.second),
                     day: normalizeShift(item.shifts?.day),
@@ -107,7 +108,7 @@ export default function OnCallTableReadOnly() {
     // Render mobile card layout
     const renderMobileCards = () => {
         return weekDays.map((date, dayIndex) => {
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = format(date, 'yyyy-MM-dd');
             const dayName = daysHeader[dayIndex];
 
             return (
@@ -256,7 +257,7 @@ export default function OnCallTableReadOnly() {
                                 </div>
 
                                 {weekDays.map((date, i) => {
-                                    const dateKey = date.toISOString().split('T')[0];
+                                    const dateKey = format(date, 'yyyy-MM-dd');
                                     const shiftData = scheduleData.get(dateKey)?.[rowType.id as keyof ShiftData['shifts']] || { names: [], mode: 'phone' };
                                     const { names, mode } = shiftData;
                                     const activeMode = MODES.find(m => m.id === mode) || MODES[0];

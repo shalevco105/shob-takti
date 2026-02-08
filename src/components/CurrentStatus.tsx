@@ -39,8 +39,9 @@ export default function CurrentStatus() {
             }
 
             try {
-                const start = startOfDay(queryDate).toISOString();
-                const end = endOfDay(queryDate).toISOString();
+                const dateKey = format(queryDate, 'yyyy-MM-dd');
+                const start = `${dateKey}T00:00:00Z`;
+                const end = `${dateKey}T23:59:59Z`;
                 const res = await fetch(`/api/schedule?start=${start}&end=${end}`);
                 const data = await res.json();
 
