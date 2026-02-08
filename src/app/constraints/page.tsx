@@ -73,7 +73,8 @@ export default function ConstraintsPage() {
 
             const map = new Map<string, ConstraintData>();
             data.forEach((item: any) => {
-                const dateKey = new Date(item.date).toISOString().split('T')[0];
+                const d = new Date(item.date);
+                const dateKey = format(d, 'yyyy-MM-dd');
                 const personConstraints = item.constraints?.[selectedPerson] || { day: false, night: false };
                 console.log(`Constraint for ${dateKey}:`, personConstraints);
                 map.set(dateKey, personConstraints);
@@ -88,7 +89,7 @@ export default function ConstraintsPage() {
     };
 
     const handleToggle = (date: Date, shift: 'day' | 'night') => {
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = format(date, 'yyyy-MM-dd');
         const current = constraintsData.get(dateKey) || { day: false, night: false };
         const updated = { ...current, [shift]: !current[shift] };
 
@@ -104,7 +105,7 @@ export default function ConstraintsPage() {
         try {
             const promises = [];
             for (const day of weekDays) {
-                const dateKey = day.toISOString().split('T')[0];
+                const dateKey = format(day, 'yyyy-MM-dd');
                 const constraints = constraintsData.get(dateKey) || { day: false, night: false };
 
                 console.log('Saving constraints for', dateKey, ':', constraints);
@@ -114,7 +115,7 @@ export default function ConstraintsPage() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            date: day,
+                            date: dateKey,
                             name: selectedPerson,
                             constraints
                         })
@@ -141,7 +142,7 @@ export default function ConstraintsPage() {
     // Render mobile card layout for constraints
     const renderMobileConstraintsCards = () => {
         return weekDays.map((date, dayIndex) => {
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = format(date, 'yyyy-MM-dd');
             const dayName = daysHeader[dayIndex];
             const constraints = constraintsData.get(dateKey) || { day: false, night: false };
 
@@ -304,7 +305,7 @@ export default function ConstraintsPage() {
                                     <span style={{ fontSize: '1rem' }}>יום</span>
                                 </div>
                                 {weekDays.map((date, i) => {
-                                    const dateKey = date.toISOString().split('T')[0];
+                                    const dateKey = format(date, 'yyyy-MM-dd');
                                     const constraints = constraintsData.get(dateKey) || { day: false, night: false };
                                     return (
                                         <div key={i} className="table-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -328,7 +329,7 @@ export default function ConstraintsPage() {
                                     <span style={{ fontSize: '1rem' }}>לילה</span>
                                 </div>
                                 {weekDays.map((date, i) => {
-                                    const dateKey = date.toISOString().split('T')[0];
+                                    const dateKey = format(date, 'yyyy-MM-dd');
                                     const constraints = constraintsData.get(dateKey) || { day: false, night: false };
                                     return (
                                         <div key={i} className="table-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { format, addDays, startOfWeek, subWeeks, addWeeks, endOfWeek } from 'date-fns';
-import { ChevronRight, ChevronLeft, Phone, Building2, MapPin, Ban, Save } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Phone, Building2, MapPin, Save } from 'lucide-react';
 
 interface ShiftDetails {
-    names: string[];  // Changed from single name to array
+    names: string[];
     mode: string;
     isHoliday?: boolean;
 }
@@ -40,6 +40,7 @@ export default function OnCallTable() {
     const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
     const [moreMenuPos, setMoreMenuPos] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
     const [isMobile, setIsMobile] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentStart, i));
 
@@ -80,7 +81,8 @@ export default function OnCallTable() {
 
             const map = new Map<string, Record<string, { day: boolean; night: boolean }>>();
             data.forEach((item: any) => {
-                const dateKey = new Date(item.date).toISOString().split('T')[0];
+                const d = new Date(item.date);
+                const dateKey = format(d, 'yyyy-MM-dd');
                 map.set(dateKey, item.constraints || {});
             });
             setConstraints(map);
@@ -99,7 +101,8 @@ export default function OnCallTable() {
             const holidaySet = new Set<string>();
 
             data.forEach(item => {
-                const dateKey = new Date(item.date).toISOString().split('T')[0];
+                const d = new Date(item.date);
+                const dateKey = format(d, 'yyyy-MM-dd');
                 const normalizedShifts = {
                     second: normalizeShift(item.shifts?.second),
                     day: normalizeShift(item.shifts?.day),
@@ -107,7 +110,6 @@ export default function OnCallTable() {
                 };
                 map.set(dateKey, normalizedShifts);
 
-                // Add holidays to set based on shift data
                 if (normalizedShifts.second.isHoliday) holidaySet.add(`${dateKey}-second`);
                 if (normalizedShifts.day.isHoliday) holidaySet.add(`${dateKey}-day`);
                 if (normalizedShifts.night.isHoliday) holidaySet.add(`${dateKey}-night`);
@@ -122,21 +124,18 @@ export default function OnCallTable() {
 
     const normalizeShift = (val: any): ShiftDetails => {
         if (!val) return { names: [], mode: 'phone', isHoliday: false };
-        // Handle old single-name format for backwards compatibility
         const base = { isHoliday: val.isHoliday || false };
-        if (val.name !== undefined) {
-            return { ...base, names: val.name ? [val.name] : [], mode: val.mode || 'phone' };
-        }
-        // Handle new array format
         if (val.names !== undefined) {
             return { ...base, names: Array.isArray(val.names) ? val.names : [], mode: val.mode || 'phone' };
         }
-        // Fallback
+        if (val.name !== undefined) {
+            return { ...base, names: val.name ? [val.name] : [], mode: val.mode || 'phone' };
+        }
         return { ...base, names: [], mode: 'phone' };
     };
 
     const handleUpdate = (date: Date, role: 'second' | 'day' | 'night', field: keyof ShiftDetails, value: any) => {
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = format(date, 'yyyy-MM-dd');
         const currentDaysShifts = scheduleData.get(dateKey) || {
             second: { names: [], mode: 'phone' },
             day: { names: [], mode: 'phone' },
@@ -146,13 +145,11 @@ export default function OnCallTable() {
         const currentShift = currentDaysShifts[role];
         let updatedShift = { ...currentShift, [field]: value };
 
-        // If adding names and mode is not set, default to phone
         if (field === 'names' && value && value.length > 0 && !updatedShift.mode) {
             updatedShift.mode = 'phone';
         }
 
         const updatedDay = { ...currentDaysShifts, [role]: updatedShift };
-
         const newMap = new Map(scheduleData);
         newMap.set(dateKey, updatedDay);
 
@@ -162,8 +159,6 @@ export default function OnCallTable() {
 
     const cycleMode = (date: Date, role: 'second' | 'day' | 'night', currentMode: string) => {
         const currentIndex = MODES.findIndex(m => m.id === currentMode);
-        // If currentMode isn't found (e.g. empty or invalid), default to first one (phone)
-        // Otherwise cycle to next
         const nextIndex = (currentIndex === -1) ? 0 : (currentIndex + 1) % MODES.length;
         handleUpdate(date, role, 'mode', MODES[nextIndex].id);
     };
@@ -173,21 +168,19 @@ export default function OnCallTable() {
         try {
             const promises = [];
             for (const day of weekDays) {
-                const dateKey = day.toISOString().split('T')[0];
+                const dateKey = format(day, 'yyyy-MM-dd');
                 const shifts = scheduleData.get(dateKey) || {
                     second: { names: [], mode: 'phone', isHoliday: false },
                     day: { names: [], mode: 'phone', isHoliday: false },
                     night: { names: [], mode: 'phone', isHoliday: false }
                 };
 
-                // Inject holiday status from state
                 const payloadShifts = {
                     second: { ...shifts.second, isHoliday: holidays.has(`${dateKey}-second`) },
                     day: { ...shifts.day, isHoliday: holidays.has(`${dateKey}-day`) },
                     night: { ...shifts.night, isHoliday: holidays.has(`${dateKey}-night`) },
                 };
 
-                // Save if there are (non-empty) shifts OR if any holiday is set
                 const hasShifts = payloadShifts.second.names.length > 0 || payloadShifts.day.names.length > 0 || payloadShifts.night.names.length > 0;
                 const hasHoliday = payloadShifts.second.isHoliday || payloadShifts.day.isHoliday || payloadShifts.night.isHoliday;
 
@@ -196,7 +189,7 @@ export default function OnCallTable() {
                         fetch('/api/schedule', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ date: day, shifts: payloadShifts })
+                            body: JSON.stringify({ date: dateKey, shifts: payloadShifts })
                         })
                     );
                 }
@@ -213,7 +206,7 @@ export default function OnCallTable() {
     };
 
     const toggleHoliday = (date: Date, shiftId: string) => {
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = format(date, 'yyyy-MM-dd');
         const key = `${dateKey}-${shiftId}`;
         const newHolidays = new Set(holidays);
         if (newHolidays.has(key)) {
@@ -240,10 +233,9 @@ export default function OnCallTable() {
         { id: 'night', label: 'לילה', bg: '#eff6ff' },
     ];
 
-    // Render mobile card layout
     const renderMobileCards = () => {
         return weekDays.map((date, dayIndex) => {
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = format(date, 'yyyy-MM-dd');
             const dayName = daysHeader[dayIndex];
 
             return (
@@ -254,7 +246,6 @@ export default function OnCallTable() {
                     padding: '1rem',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                 }}>
-                    {/* Day header */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -267,7 +258,6 @@ export default function OnCallTable() {
                         <span style={{ fontSize: '1rem', fontWeight: 700, color: '#881337' }}>{format(date, 'd.M')}</span>
                     </div>
 
-                    {/* Shifts */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {shiftTypes.map((rowType) => {
                             const shiftData = scheduleData.get(dateKey)?.[rowType.id as keyof ShiftData['shifts']] || { names: [], mode: '' };
@@ -284,18 +274,17 @@ export default function OnCallTable() {
                                     borderRadius: '0.5rem',
                                     border: '1px solid rgba(0,0,0,0.05)'
                                 }}>
-                                    {/* Shift label */}
                                     <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#475569', marginBottom: '0.5rem' }}>
                                         {rowType.label}
                                     </div>
 
-                                    {/* Multiselect Button */}
                                     <button
                                         id={`dropdown-btn-${dropdownId}`}
                                         onClick={(e) => {
                                             if (isOpen) {
                                                 setOpenDropdown(null);
                                                 setDropdownPos(null);
+                                                setSearchTerm('');
                                             } else {
                                                 const rect = e.currentTarget.getBoundingClientRect();
                                                 setDropdownPos({
@@ -305,6 +294,7 @@ export default function OnCallTable() {
                                                     height: rect.height
                                                 });
                                                 setOpenDropdown(dropdownId);
+                                                setSearchTerm('');
                                             }
                                         }}
                                         style={{
@@ -334,7 +324,6 @@ export default function OnCallTable() {
                                         <span style={{ fontSize: '0.7rem', marginLeft: '0.25rem' }}>▼</span>
                                     </button>
 
-                                    {/* Mode Button and More Menu - Hidden for 'second' shift */}
                                     {rowType.id !== 'second' && (
                                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                             {names.length > 0 && (
@@ -362,7 +351,6 @@ export default function OnCallTable() {
                                                 </button>
                                             )}
 
-                                            {/* More Menu Button */}
                                             <div style={{ position: 'relative' }}>
                                                 <button
                                                     id={`holiday-btn-${dateKey}-${rowType.id}`}
@@ -402,7 +390,6 @@ export default function OnCallTable() {
                                                     +
                                                 </button>
 
-                                                {/* More Menu Dropdown - Rendered via Portal */}
                                                 {openMoreMenu === `${dateKey}-${rowType.id}` && moreMenuPos && typeof window !== 'undefined' && createPortal(
                                                     <>
                                                         <div
@@ -458,14 +445,13 @@ export default function OnCallTable() {
                                         </div>
                                     )}
 
-                                    {/* Dropdown Menu - Rendered via Portal */}
                                     {isOpen && dropdownPos && typeof window !== 'undefined' && createPortal(
                                         <>
-                                            {/* Backdrop to close dropdown */}
                                             <div
                                                 onClick={() => {
                                                     setOpenDropdown(null);
                                                     setDropdownPos(null);
+                                                    setSearchTerm('');
                                                 }}
                                                 style={{
                                                     position: 'fixed',
@@ -477,63 +463,92 @@ export default function OnCallTable() {
                                                 }}
                                             />
 
-                                            {/* Dropdown content */}
                                             <div style={{
                                                 position: 'fixed',
                                                 top: (dropdownPos.top + dropdownPos.height + 4) + 'px',
-                                                left: dropdownPos.left + 'px',
+                                                left: (dropdownPos.left) + 'px',
                                                 width: dropdownPos.width + 'px',
                                                 background: 'white',
                                                 border: '1px solid #cbd5e1',
                                                 borderRadius: '0.5rem',
                                                 boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
                                                 zIndex: 9999,
-                                                maxHeight: '250px',
+                                                maxHeight: '300px',
                                                 overflowY: 'auto',
+                                                display: 'flex',
+                                                flexDirection: 'column'
                                             }}>
-                                                {teamMembers.map(memberName => {
-                                                    const isSelected = names.includes(memberName);
-                                                    const memberConstraints = dayConstraints[memberName] || { day: false, night: false };
-                                                    const hasConstraint = (rowType.id === 'second' || rowType.id === 'day')
-                                                        ? memberConstraints.day
-                                                        : memberConstraints.night;
+                                                <div style={{
+                                                    position: 'sticky',
+                                                    top: 0,
+                                                    background: 'white',
+                                                    padding: '0.5rem',
+                                                    borderBottom: '1px solid #e2e8f0',
+                                                    zIndex: 1
+                                                }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="חיפוש..."
+                                                        value={searchTerm}
+                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                        autoFocus
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: '0.5rem',
+                                                            borderRadius: '0.375rem',
+                                                            border: '1px solid #cbd5e1',
+                                                            fontSize: '0.875rem',
+                                                            direction: 'rtl'
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div style={{ flex: 1, overflowY: 'auto' }}>
+                                                    {teamMembers
+                                                        .filter(name => name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                        .map(memberName => {
+                                                            const isSelected = names.includes(memberName);
+                                                            const memberConstraints = dayConstraints[memberName] || { day: false, night: false };
+                                                            const hasConstraint = (rowType.id === 'second' || rowType.id === 'day')
+                                                                ? memberConstraints.day
+                                                                : memberConstraints.night;
 
-                                                    return (
-                                                        <label
-                                                            key={memberName}
-                                                            style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.5rem',
-                                                                padding: '0.75rem',
-                                                                cursor: hasConstraint ? 'not-allowed' : 'pointer',
-                                                                opacity: hasConstraint ? 0.4 : 1,
-                                                                background: isSelected ? '#f1f5f9' : 'transparent',
-                                                                borderBottom: '1px solid #f1f5f9',
-                                                                minHeight: '44px'
-                                                            }}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isSelected}
-                                                                onChange={(e) => {
-                                                                    const newNames = e.target.checked
-                                                                        ? [...names, memberName]
-                                                                        : names.filter(n => n !== memberName);
-                                                                    handleUpdate(date, rowType.id as any, 'names', newNames);
-                                                                }}
-                                                                style={{
-                                                                    width: '20px',
-                                                                    height: '20px',
-                                                                    cursor: 'pointer',
-                                                                    flexShrink: 0
-                                                                }}
-                                                                disabled={hasConstraint}
-                                                            />
-                                                            <span style={{ flex: 1, fontSize: '0.875rem' }}>{memberName}</span>
-                                                        </label>
-                                                    );
-                                                })}
+                                                            return (
+                                                                <label
+                                                                    key={memberName}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.5rem',
+                                                                        padding: '0.75rem',
+                                                                        cursor: hasConstraint ? 'not-allowed' : 'pointer',
+                                                                        opacity: hasConstraint ? 0.4 : 1,
+                                                                        background: isSelected ? '#f1f5f9' : 'transparent',
+                                                                        borderBottom: '1px solid #f1f5f9',
+                                                                        minHeight: '44px'
+                                                                    }}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isSelected}
+                                                                        onChange={(e) => {
+                                                                            const newNames = e.target.checked
+                                                                                ? [...names, memberName]
+                                                                                : names.filter(n => n !== memberName);
+                                                                            handleUpdate(date, rowType.id as any, 'names', newNames);
+                                                                        }}
+                                                                        style={{
+                                                                            width: '20px',
+                                                                            height: '20px',
+                                                                            cursor: 'pointer',
+                                                                            flexShrink: 0
+                                                                        }}
+                                                                        disabled={hasConstraint}
+                                                                    />
+                                                                    <span style={{ flex: 1, fontSize: '0.875rem' }}>{memberName}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                </div>
                                             </div>
                                         </>,
                                         document.body
@@ -569,7 +584,6 @@ export default function OnCallTable() {
                 )}
             </div>
 
-            {/* Conditional rendering: Mobile cards or Desktop table */}
             {isMobile ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {renderMobileCards()}
@@ -593,7 +607,7 @@ export default function OnCallTable() {
                         </div>
 
                         {[
-                            { id: 'second', label: 'יום משני', bg: '#fff7ed' },
+                            { id: 'second', label: 'משני', bg: '#fff7ed' },
                             { id: 'day', label: 'ראשי יום', bg: '#fefce8' },
                             { id: 'night', label: 'לילה', bg: '#eff6ff' },
                         ].map((rowType, rowIndex) => (
@@ -606,14 +620,14 @@ export default function OnCallTable() {
                                 </div>
 
                                 {weekDays.map((date, i) => {
-                                    const dateKey = date.toISOString().split('T')[0];
+                                    const dateKey = format(date, 'yyyy-MM-dd');
                                     const shiftData = scheduleData.get(dateKey)?.[rowType.id as keyof ShiftData['shifts']] || { names: [], mode: '' };
                                     const { names, mode } = shiftData;
                                     const activeMode = MODES.find(m => m.id === mode) || MODES[0];
                                     const dayConstraints = constraints.get(dateKey) || {};
                                     const dropdownId = `${dateKey}-${rowType.id}`;
                                     const isOpen = openDropdown === dropdownId;
-                                    const isLastRow = rowIndex === 2; // Night shift is the last row
+                                    const isLastRow = rowIndex === 2;
 
                                     return (
                                         <div key={i} className="table-cell" style={{
@@ -622,13 +636,13 @@ export default function OnCallTable() {
                                             position: 'relative'
                                         }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center', padding: rowType.id === 'second' ? '0.25rem' : '0.5rem' }}>
-                                                {/* Multiselect Button */}
                                                 <button
                                                     id={`dropdown-btn-${dropdownId}`}
                                                     onClick={(e) => {
                                                         if (isOpen) {
                                                             setOpenDropdown(null);
                                                             setDropdownPos(null);
+                                                            setSearchTerm('');
                                                         } else {
                                                             const rect = e.currentTarget.getBoundingClientRect();
                                                             setDropdownPos({
@@ -638,6 +652,7 @@ export default function OnCallTable() {
                                                                 height: rect.height
                                                             });
                                                             setOpenDropdown(dropdownId);
+                                                            setSearchTerm('');
                                                         }
                                                     }}
                                                     style={{
@@ -668,7 +683,6 @@ export default function OnCallTable() {
                                                     <span style={{ fontSize: '0.7rem', marginLeft: '0.25rem' }}>▼</span>
                                                 </button>
 
-                                                {/* Mode Button and More Menu - Hidden for 'second' shift */}
                                                 {rowType.id !== 'second' && (
                                                     <div style={{ display: 'flex', gap: '0.25rem' }}>
                                                         {names.length > 0 && (
@@ -696,7 +710,6 @@ export default function OnCallTable() {
                                                             </button>
                                                         )}
 
-                                                        {/* More Menu Button */}
                                                         <div style={{ position: 'relative' }}>
                                                             <button
                                                                 id={`holiday-btn-${dateKey}-${rowType.id}`}
@@ -735,7 +748,6 @@ export default function OnCallTable() {
                                                                 +
                                                             </button>
 
-                                                            {/* More Menu Dropdown - Rendered via Portal */}
                                                             {openMoreMenu === `${dateKey}-${rowType.id}` && moreMenuPos && typeof window !== 'undefined' && createPortal(
                                                                 <>
                                                                     <div
@@ -799,14 +811,13 @@ export default function OnCallTable() {
                                                 )}
                                             </div>
 
-                                            {/* Dropdown Menu - Rendered via Portal */}
                                             {isOpen && dropdownPos && typeof window !== 'undefined' && createPortal(
                                                 <>
-                                                    {/* Backdrop to close dropdown */}
                                                     <div
                                                         onClick={() => {
                                                             setOpenDropdown(null);
                                                             setDropdownPos(null);
+                                                            setSearchTerm('');
                                                         }}
                                                         style={{
                                                             position: 'fixed',
@@ -818,7 +829,6 @@ export default function OnCallTable() {
                                                         }}
                                                     />
 
-                                                    {/* Dropdown content */}
                                                     <div style={{
                                                         position: 'fixed',
                                                         top: isLastRow ? 'auto' : (dropdownPos.top + dropdownPos.height + 4) + 'px',
@@ -830,62 +840,92 @@ export default function OnCallTable() {
                                                         borderRadius: '0.5rem',
                                                         boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
                                                         zIndex: 9999,
-                                                        maxHeight: '250px',
+                                                        maxHeight: '350px',
                                                         overflowY: 'auto',
+                                                        display: 'flex',
+                                                        flexDirection: 'column'
                                                     }}>
-                                                        {teamMembers.map(memberName => {
-                                                            const isSelected = names.includes(memberName);
-                                                            const memberConstraints = dayConstraints[memberName] || { day: false, night: false };
-                                                            const hasConstraint = (rowType.id === 'second' || rowType.id === 'day')
-                                                                ? memberConstraints.day
-                                                                : memberConstraints.night;
+                                                        <div style={{
+                                                            position: 'sticky',
+                                                            top: 0,
+                                                            background: 'white',
+                                                            padding: '0.5rem',
+                                                            borderBottom: '1px solid #e2e8f0',
+                                                            zIndex: 1
+                                                        }}>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="חיפוש..."
+                                                                value={searchTerm}
+                                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                                autoFocus
+                                                                style={{
+                                                                    width: '100%',
+                                                                    padding: '0.4rem 0.6rem',
+                                                                    borderRadius: '0.375rem',
+                                                                    border: '1px solid #cbd5e1',
+                                                                    fontSize: '0.8rem',
+                                                                    direction: 'rtl'
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                                                            {teamMembers
+                                                                .filter(name => name.toLowerCase().includes(searchTerm.toLowerCase()))
+                                                                .map(memberName => {
+                                                                    const isSelected = names.includes(memberName);
+                                                                    const memberConstraints = dayConstraints[memberName] || { day: false, night: false };
+                                                                    const hasConstraint = (rowType.id === 'second' || rowType.id === 'day')
+                                                                        ? memberConstraints.day
+                                                                        : memberConstraints.night;
 
-                                                            return (
-                                                                <label
-                                                                    key={memberName}
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '0.5rem',
-                                                                        padding: '0.75rem',
-                                                                        cursor: hasConstraint ? 'not-allowed' : 'pointer',
-                                                                        opacity: hasConstraint ? 0.4 : 1,
-                                                                        background: isSelected ? '#f1f5f9' : 'transparent',
-                                                                        borderBottom: '1px solid #f1f5f9',
-                                                                        transition: 'background 0.15s'
-                                                                    }}
-                                                                    onMouseEnter={(e) => {
-                                                                        if (!isSelected && !hasConstraint) {
-                                                                            e.currentTarget.style.background = '#f8fafc';
-                                                                        }
-                                                                    }}
-                                                                    onMouseLeave={(e) => {
-                                                                        if (!isSelected && !hasConstraint) {
-                                                                            e.currentTarget.style.background = 'transparent';
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={isSelected}
-                                                                        onChange={(e) => {
-                                                                            const newNames = e.target.checked
-                                                                                ? [...names, memberName]
-                                                                                : names.filter(n => n !== memberName);
-                                                                            handleUpdate(date, rowType.id as any, 'names', newNames);
-                                                                        }}
-                                                                        style={{
-                                                                            width: '16px',
-                                                                            height: '16px',
-                                                                            cursor: 'pointer',
-                                                                            flexShrink: 0
-                                                                        }}
-                                                                        disabled={hasConstraint}
-                                                                    />
-                                                                    <span style={{ flex: 1 }}>{memberName}</span>
-                                                                </label>
-                                                            );
-                                                        })}
+                                                                    return (
+                                                                        <label
+                                                                            key={memberName}
+                                                                            style={{
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '0.5rem',
+                                                                                padding: '0.75rem',
+                                                                                cursor: hasConstraint ? 'not-allowed' : 'pointer',
+                                                                                opacity: hasConstraint ? 0.4 : 1,
+                                                                                background: isSelected ? '#f1f5f9' : 'transparent',
+                                                                                borderBottom: '1px solid #f1f5f9',
+                                                                                transition: 'background 0.15s'
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                if (!isSelected && !hasConstraint) {
+                                                                                    e.currentTarget.style.background = '#f8fafc';
+                                                                                }
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                if (!isSelected && !hasConstraint) {
+                                                                                    e.currentTarget.style.background = 'transparent';
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isSelected}
+                                                                                onChange={(e) => {
+                                                                                    const newNames = e.target.checked
+                                                                                        ? [...names, memberName]
+                                                                                        : names.filter(n => n !== memberName);
+                                                                                    handleUpdate(date, rowType.id as any, 'names', newNames);
+                                                                                }}
+                                                                                style={{
+                                                                                    width: '16px',
+                                                                                    height: '16px',
+                                                                                    cursor: 'pointer',
+                                                                                    flexShrink: 0
+                                                                                }}
+                                                                                disabled={hasConstraint}
+                                                                            />
+                                                                            <span style={{ flex: 1 }}>{memberName}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                        </div>
                                                     </div>
                                                 </>,
                                                 document.body

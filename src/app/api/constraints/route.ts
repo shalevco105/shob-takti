@@ -38,7 +38,12 @@ export async function POST(request: Request) {
 
         console.log('Received constraints request:', { date, name, userConstraints });
 
-        const normalizedDate = startOfDay(new Date(date));
+        const inputDate = new Date(date);
+        const normalizedDate = new Date(Date.UTC(
+            inputDate.getFullYear(),
+            inputDate.getMonth(),
+            inputDate.getDate()
+        ));
 
         // Find or create document for this date
         let existing = await Constraints.findOne({ date: normalizedDate });

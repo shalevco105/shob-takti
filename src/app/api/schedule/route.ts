@@ -41,8 +41,14 @@ export async function POST(request: Request) {
         console.log('Received POST payload:', { date, shifts });
 
         // Normalize date to start of day (UTC) to ensure consistency
-        // When the frontend sends a date, we want to store it as the "Day" entry.
-        const normalizedDate = startOfDay(new Date(date));
+        // The date comes in as a string or Date from the frontend.
+        // We want to store it as the midnight UTC of THAT day.
+        const inputDate = new Date(date);
+        const normalizedDate = new Date(Date.UTC(
+            inputDate.getFullYear(),
+            inputDate.getMonth(),
+            inputDate.getDate()
+        ));
 
         const schedule = await OnCallSchedule.findOneAndUpdate(
             { date: normalizedDate },
