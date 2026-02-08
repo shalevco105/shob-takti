@@ -32,7 +32,7 @@ export async function GET() {
             const date = new Date(doc.date);
             const dayOfWeek = getDay(date); // 0 = Sun, 4 = Thu, 5 = Fri, 6 = Sat
 
-            const processShift = (shift: any, type: 'main' | 'night') => {
+            const processShift = (shift: any, type: 'day' | 'night') => {
                 if (!shift || !shift.names || !Array.isArray(shift.names)) return;
 
                 // Process each person in the shift
@@ -59,7 +59,7 @@ export async function GET() {
                     }
                     // Saturday (6)
                     else if (dayOfWeek === 6) {
-                        if (type === 'main') {
+                        if (type === 'day') {
                             // Saturday Day = 2 points, "Weekend" category
                             points = 2;
                             category = 'weekend';
@@ -90,10 +90,10 @@ export async function GET() {
                 });
             };
 
-            // Morning shift does NOT count ("צל לא נחשב בניקוד")
-            // processShift(doc.shifts.morning, 'morning'); 
+            // Second shift (formerly morning) does NOT count ("צל לא נחשב בניקוד")
+            // processShift(doc.shifts.second, 'second'); 
 
-            processShift(doc.shifts.main, 'main');
+            processShift(doc.shifts.day, 'day');
             processShift(doc.shifts.night, 'night');
         });
 

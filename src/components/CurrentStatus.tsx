@@ -19,10 +19,11 @@ const MODES_CONFIG: Record<string, { label: string; icon: any; bg: string; color
 export default function CurrentStatus() {
     const [currentShift, setCurrentShift] = useState<{
         role: string;
-        people: string[];  // Changed from person to people
+        people: string[];
+        secondPeople: string[];
         mode: string;
         icon: React.ReactNode;
-        colorClass: string;
+        color: string;
     } | null>(null);
 
     useEffect(() => {
@@ -31,15 +32,10 @@ export default function CurrentStatus() {
             const hour = now.getHours();
 
             let queryDate = now;
-            let shiftType: 'morning' | 'main' | 'night' = 'main';
+            let shiftType: 'day' | 'night' = (hour >= 8 && hour < 20) ? 'day' : 'night';
 
-            if (hour >= 8 && hour < 20) {
-                shiftType = 'main';
-            } else {
-                shiftType = 'night';
-                if (hour < 8) {
-                    queryDate = subDays(now, 1);
-                }
+            if (hour < 8) {
+                queryDate = subDays(now, 1);
             }
 
             try {
@@ -49,19 +45,21 @@ export default function CurrentStatus() {
                 const data = await res.json();
 
                 if (data && data.length > 0 && data[0].shifts) {
-                    const shift = data[0].shifts[shiftType] as ShiftDetails;
-                    const names = shift?.names || [];
-                    const mode = shift?.mode || 'phone';
+                    const shifts = data[0].shifts;
+                    const mainShift = shifts[shiftType] as ShiftDetails;
+                    const secondShift = shifts.second as ShiftDetails;
 
+                    const mode = mainShift?.mode || 'phone';
                     const modeConfig = MODES_CONFIG[mode] || MODES_CONFIG['phone'];
                     const Icon = modeConfig.icon;
 
                     setCurrentShift({
-                        role: shiftType === 'night' ? 'לילה' : 'יום',
-                        people: names,
-                        mode: mode,  // Store the mode ID, not the label
-                        icon: <Icon size={24} />,
-                        colorClass: modeConfig.color
+                        role: shiftType === 'night' ? 'לילה' : 'ראשי',
+                        people: mainShift?.names || [],
+                        secondPeople: secondShift?.names || [],
+                        mode: mode,
+                        icon: <Icon size={20} />,
+                        color: modeConfig.color
                     });
                 } else {
                     setCurrentShift(null);
@@ -78,64 +76,61 @@ export default function CurrentStatus() {
     }, []);
 
     if (!currentShift) return (
-        <div className="card glass widget-container" style={{ minHeight: '200px', alignItems: 'center', justifyContent: 'center' }}>
-            <span className="opacity-50">טוען נתונים...</span>
+        <div className="card glass widget-container" style={{ minHeight: '160px', alignItems: 'center', justifyContent: 'center' }}>
+            <span className="opacity-50" style={{ fontSize: '0.875rem' }}>טוען נתונים...</span>
         </div>
     );
 
     const activeModeConfig = MODES_CONFIG[currentShift.mode];
 
     return (
-        <div className="card glass widget-container" style={{ overflow: 'hidden' }}>
-            {/* Widget Header */}
-            <div className="widget-header" style={{ padding: '1.5rem 1.5rem 0 1.5rem' }}>
-                <div className="icon-box" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                    <activeModeConfig.icon size={24} />
-                </div>
-                <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1f2937' }}>כונן נוכחי</h2>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                        סטטוס: {activeModeConfig.label}
-                    </p>
+        <div className="card glass widget-container" style={{ padding: '1.25rem', gap: '1rem', background: '#fff' }}>
+            {/* Header Area */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{
+                        background: activeModeConfig.bg,
+                        color: activeModeConfig.color,
+                        padding: '0.5rem',
+                        borderRadius: '0.75rem',
+                        display: 'flex'
+                    }}>
+                        <activeModeConfig.icon size={20} />
+                    </div>
+                    <div>
+                        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#1f2937', marginBottom: '0.125rem' }}>כונן נוכחי</h2>
+                        <p style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                            סטטוס: {activeModeConfig.label}
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {/* Widget Content */}
-            <div style={{ padding: '0 1.5rem 1.5rem 1.5rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    style={{
-                        background: activeModeConfig.bg,
-                        padding: '1.5rem',
-                        borderRadius: '1rem',
-                        position: 'relative',
-                        overflow: 'hidden'
-                    }}
-                >
-                    <div style={{ position: 'relative', zIndex: 10 }}>
-                        <h3 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.25rem' }}>
-                            {currentShift.people.length > 0 ? currentShift.people.join(', ') : 'אין שיבוץ'}
-                        </h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{
-                                background: 'rgba(255,255,255,0.6)',
-                                padding: '0.25rem 0.75rem',
-                                borderRadius: '999px',
-                                fontSize: '0.875rem',
-                                fontWeight: 700,
-                                color: activeModeConfig.color
-                            }}>
-                                {currentShift.role}
-                            </span>
-                            {currentShift.people.length > 1 && (
-                                <span style={{ fontSize: '0.875rem', color: '#475569' }}>
-                                    (+{currentShift.people.length - 1} נוספים)
-                                </span>
-                            )}
-                        </div>
+            {/* Main Content Area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: '2rem', fontWeight: 800, color: '#0f172a' }}>
+                        {currentShift.people.length > 0 ? currentShift.people.join(', ') : 'אין שיבוץ'}
+                    </h3>
+                </div>
+
+                {currentShift.secondPeople.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        background: '#f8fafc',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #f1f5f9',
+                        width: 'fit-content'
+                    }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#64748b' }}>כונן משני:</span>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#334155' }}>
+                            {currentShift.secondPeople.join(', ')}
+                        </span>
                     </div>
-                </motion.div>
+                )}
             </div>
         </div>
     );

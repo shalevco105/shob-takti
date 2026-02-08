@@ -14,8 +14,8 @@ interface ShiftData {
     date: string;
     isHoliday?: boolean;
     shifts: {
-        morning: ShiftDetails;
-        main: ShiftDetails;
+        second: ShiftDetails;
+        day: ShiftDetails;
         night: ShiftDetails;
     }
 }
@@ -60,15 +60,15 @@ export default function OnCallTableReadOnly() {
             data.forEach(item => {
                 const dateKey = new Date(item.date).toISOString().split('T')[0];
                 const normalizedShifts = {
-                    morning: normalizeShift(item.shifts?.morning),
-                    main: normalizeShift(item.shifts?.main),
+                    second: normalizeShift(item.shifts?.second),
+                    day: normalizeShift(item.shifts?.day),
                     night: normalizeShift(item.shifts?.night),
                 };
                 map.set(dateKey, normalizedShifts);
 
                 // Add holidays based on shift data
-                if (normalizedShifts.morning.isHoliday) holidaySet.add(`${dateKey}-morning`);
-                if (normalizedShifts.main.isHoliday) holidaySet.add(`${dateKey}-main`);
+                if (normalizedShifts.second.isHoliday) holidaySet.add(`${dateKey}-second`);
+                if (normalizedShifts.day.isHoliday) holidaySet.add(`${dateKey}-day`);
                 if (normalizedShifts.night.isHoliday) holidaySet.add(`${dateKey}-night`);
             });
             setScheduleData(map);
@@ -99,8 +99,8 @@ export default function OnCallTableReadOnly() {
     };
 
     const shiftTypes = [
-        { id: 'morning', label: 'צל יום', bg: '#fff7ed' },
-        { id: 'main', label: 'ראשי יום', bg: '#fefce8' },
+        { id: 'second', label: 'משני', bg: '#fff7ed' },
+        { id: 'day', label: 'ראשי', bg: '#fefce8' },
         { id: 'night', label: 'לילה', bg: '#eff6ff' },
     ];
 
@@ -161,8 +161,8 @@ export default function OnCallTableReadOnly() {
                                         {names.length > 0 ? names.join(', ') : '-'}
                                     </div>
 
-                                    {/* Mode and Holiday badges */}
-                                    {names.length > 0 && (
+                                    {/* Mode and Holiday badges - Hidden for 'second' shift */}
+                                    {rowType.id !== 'second' && names.length > 0 && (
                                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <div style={{
                                                 display: 'inline-flex',
@@ -243,16 +243,16 @@ export default function OnCallTableReadOnly() {
                         </div>
 
                         {[
-                            { id: 'morning', label: 'צל יום', bg: '#fff7ed' },
-                            { id: 'main', label: 'ראשי יום', bg: '#fefce8' },
+                            { id: 'second', label: 'משני', bg: '#fff7ed' },
+                            { id: 'day', label: 'ראשי', bg: '#fefce8' },
                             { id: 'night', label: 'לילה', bg: '#eff6ff' },
                         ].map((rowType) => (
                             <div key={rowType.id} className="table-row" style={{ ...gridStyle, backgroundColor: rowType.bg }}>
                                 <div className="table-cell" style={{
                                     display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700,
-                                    color: '#475569', padding: '0.5rem 1rem', borderLeft: '1px solid rgba(0,0,0,0.05)'
+                                    color: '#475569', padding: '0.25rem 1rem', borderLeft: '1px solid rgba(0,0,0,0.05)'
                                 }}>
-                                    <span style={{ fontSize: '1rem' }}>{rowType.label}</span>
+                                    <span style={{ fontSize: '0.9rem' }}>{rowType.label}</span>
                                 </div>
 
                                 {weekDays.map((date, i) => {
@@ -273,7 +273,8 @@ export default function OnCallTableReadOnly() {
                                                 {names.length > 0 ? names.join(', ') : '-'}
                                             </div>
 
-                                            {names.length > 0 && (
+                                            {/* Mode and Holiday badges - Hidden for 'second' shift */}
+                                            {rowType.id !== 'second' && names.length > 0 && (
                                                 <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                                                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', background: activeMode.bg, color: activeMode.color, borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 500 }}>
                                                         {activeMode.icon}

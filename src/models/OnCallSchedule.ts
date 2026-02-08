@@ -10,8 +10,8 @@ export interface IOnCallSchedule extends Document {
     date: Date;
     // isHoliday removed from here
     shifts: {
-        morning: ShiftDetails;
-        main: ShiftDetails;
+        second: ShiftDetails;
+        day: ShiftDetails;
         night: ShiftDetails;
     };
 }
@@ -26,8 +26,8 @@ const OnCallScheduleSchema = new Schema<IOnCallSchedule>({
     date: { type: Date, required: true, unique: true },
     // isHoliday removed from here
     shifts: {
-        morning: { type: ShiftDetailsSchema, default: () => ({ names: [], mode: 'phone', isHoliday: false }) },
-        main: { type: ShiftDetailsSchema, default: () => ({ names: [], mode: 'phone', isHoliday: false }) },
+        second: { type: ShiftDetailsSchema, default: () => ({ names: [], mode: 'phone', isHoliday: false }) },
+        day: { type: ShiftDetailsSchema, default: () => ({ names: [], mode: 'phone', isHoliday: false }) },
         night: { type: ShiftDetailsSchema, default: () => ({ names: [], mode: 'phone', isHoliday: false }) }
     }
 }, {
